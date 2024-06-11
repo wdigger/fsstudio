@@ -45,7 +45,12 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY ""
 )
 
-if(APPLE)
+if(WIN32)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                       COMMAND "${WINDEPLOYQT_EXECUTABLE}"
+                       ARGS $<TARGET_BUNDLE_DIR:${PROJECT_NAME}> "--compiler-runtime"
+                       COMMENT "Execute windeployqt to copy dependencies")
+elseif(APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                        COMMAND "${MACDEPLOYQT_EXECUTABLE}"
                        ARGS $<TARGET_BUNDLE_DIR:${PROJECT_NAME}> "-always-overwrite"
@@ -58,6 +63,7 @@ set(CPACK_PACKAGE_VERSION_MAJOR  ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR  ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH  ${PROJECT_VERSION_PATCH})
 if(WIN32)
+    include(InstallRequiredSystemLibraries)
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(WIN_ARCH_STRING x64)
     else()
