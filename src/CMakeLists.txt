@@ -101,6 +101,33 @@ if(APPLE)
     ")
 endif()
 
+if(WIN32)
+    # Qt is deployed next to the installed executable (used by cpack), so the
+    # build tree keeps running against the Qt installation.
+    find_program(WINDEPLOYQT_EXECUTABLE windeployqt
+                 HINTS "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_BINS}" REQUIRED)
+
+    # The compiler runtime is installed by InstallRequiredSystemLibraries.
+    install(CODE "
+        set(exe \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.exe\")
+        message(STATUS \"Deploying Qt for \${exe}\")
+        execute_process(COMMAND \"${WINDEPLOYQT_EXECUTABLE}\" \"\${exe}\"
+                                --no-compiler-runtime
+                                --no-translations
+                                --no-system-d3d-compiler
+                                --no-opengl-sw
+                        RESULT_VARIABLE result)
+        if(NOT result EQUAL 0)
+            message(FATAL_ERROR \"windeployqt failed: \${result}\")
+        endif()
+        file(GLOB platform_plugins
+             \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/platforms/qwindows*.dll\")
+        if(NOT platform_plugins)
+            message(FATAL_ERROR \"Qt platform plugin was not deployed\")
+        endif()
+    ")
+endif()
+
 set(CPACK_PACKAGE_VERSION_MAJOR  ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR  ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH  ${PROJECT_VERSION_PATCH})
