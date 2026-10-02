@@ -46,14 +46,60 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY ""
 )
 
-if(APPLE)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                       COMMAND "${MACDEPLOYQT_EXECUTABLE}"
-                       ARGS $<TARGET_BUNDLE_DIR:${PROJECT_NAME}> "-always-overwrite"
-                       COMMENT "Execute macdeployqt to create macOS bundle")
-endif()
-
 install(TARGETS ${PROJECT_NAME} DESTINATION ".")
+
+if(APPLE)
+    # Qt is deployed into the installed bundle (used by cpack), not into the
+    # build tree: macdeployqt rewrites and re-signs binaries, so running it on
+    # every build breaks incremental builds and the bundle signature.
+    find_program(MACDEPLOYQT_EXECUTABLE macdeployqt
+                 HINTS "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_BINS}" REQUIRED)
+
+    # Deploy only the plugins the application needs: they are copied into the
+    # bundle and macdeployqt then resolves their dependencies.
+    # Package managers (Homebrew in particular) keep plugins of all Qt modules
+    # in a single directory (of symlinks), so letting macdeployqt copy
+    # everything drags in QML, VirtualKeyboard, WebEngine's QtPdf, etc. with
+    # unresolvable dependencies.
+    set(DEPLOY_PLUGINS_CODE "")
+    foreach(plugin platforms|Qt6::QCocoaIntegrationPlugin
+                   styles|Qt6::QMacStylePlugin
+                   multimedia|Qt6::QDarwinMediaPlugin)
+        string(REPLACE "|" ";" plugin "${plugin}")
+        list(GET plugin 0 plugin_type)
+        list(GET plugin 1 plugin_target)
+        string(APPEND DEPLOY_PLUGINS_CODE "
+        get_filename_component(plugin \"$<TARGET_FILE:${plugin_target}>\" REALPATH)
+        file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app/Contents/PlugIns/${plugin_type}\"
+             TYPE SHARED_LIBRARY FILES \"\${plugin}\")")
+    endforeach()
+
+    # Plugins from package managers depend on third-party libraries
+    # referenced via @rpath, so tell macdeployqt where to look for them.
+    set(MACDEPLOYQT_ARGS "-no-plugins")
+    foreach(dir "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_LIBS}"
+                /opt/homebrew/lib /usr/local/lib /opt/local/lib)
+        if(IS_DIRECTORY "${dir}")
+            list(APPEND MACDEPLOYQT_ARGS "-libpath=${dir}")
+        endif()
+    endforeach()
+    list(JOIN MACDEPLOYQT_ARGS "\" \"" MACDEPLOYQT_ARGS)
+
+    install(CODE "${DEPLOY_PLUGINS_CODE}
+        set(bundle \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app\")
+        message(STATUS \"Deploying Qt into \${bundle}\")
+        execute_process(COMMAND \"${MACDEPLOYQT_EXECUTABLE}\" \"\${bundle}\" \"${MACDEPLOYQT_ARGS}\"
+                        RESULT_VARIABLE result)
+        if(NOT result EQUAL 0)
+            message(FATAL_ERROR \"macdeployqt failed: \${result}\")
+        endif()
+        execute_process(COMMAND codesign --verify --deep --strict \"\${bundle}\"
+                        RESULT_VARIABLE result)
+        if(NOT result EQUAL 0)
+            message(FATAL_ERROR \"Bundle signature verification failed\")
+        endif()
+    ")
+endif()
 
 set(CPACK_PACKAGE_VERSION_MAJOR  ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR  ${PROJECT_VERSION_MINOR})
