@@ -76,9 +76,11 @@ FSSExportDialog::FSSExportDialog(FSSDataModel *_dataModel, QWidget *parent)
 
   button_export = new QPushButton("Export", this);
   button_export->setEnabled(false);
-  connect(button_export, SIGNAL(pressed()), SLOT(do_export()));
+  connect(button_export, &QPushButton::pressed,
+          this, &FSSExportDialog::do_export);
   button_cancel = new QPushButton("Cancel", this);
-  connect(button_cancel, SIGNAL(pressed()), SLOT(close()));
+  connect(button_cancel, &QPushButton::pressed,
+          this, &FSSExportDialog::close);
 
   hLayout->addStretch();
   hLayout->addWidget(button_cancel);

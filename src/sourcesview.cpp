@@ -36,8 +36,8 @@ FSSSourcesView::addSource(Data::PSource source) {
   resView->setMinimumWidth(250);
   sourceViews.push_back(resView);
 
-  connect(this, SIGNAL(resourceSelected(Data::Resource,uint)),
-          resView, SLOT(selectResource(Data::Resource,uint)));
+  connect(this, &FSSSourcesView::resourceSelected,
+          resView, &FSSResourceView::selectResource);
 }
 
 void

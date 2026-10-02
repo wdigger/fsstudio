@@ -21,17 +21,24 @@
 
 #include "src/audioview.h"
 
-//#include <QMediaPlayer>
+#include <QMediaPlayer>
+#include <QAudioOutput>
 #include <QTemporaryFile>
 #include <QDir>
 #include <QSlider>
 #include <QHBoxLayout>
 #include <QPushButton>
+#include <QUrl>
+#include <QDebug>
 
 #include "src/buffer.h"
 
 FSSAudioView::FSSAudioView(QWidget *pParent) : QWidget(pParent) {
   file = nullptr;
+  player = new QMediaPlayer(this);
+  audioOutput = new QAudioOutput(this);
+  audioOutput->setVolume(0.5f);
+  player->setAudioOutput(audioOutput);
 
   QHBoxLayout *main_layout = new QHBoxLayout(this);
   setLayout(main_layout);
@@ -40,14 +47,33 @@ FSSAudioView::FSSAudioView(QWidget *pParent) : QWidget(pParent) {
   buttonPlay->setText("Play");
   buttonPlay->setEnabled(false);
   main_layout->addWidget(buttonPlay);
+  connect(buttonPlay, &QPushButton::clicked,
+          this, &FSSAudioView::on_play);
 
   slider = new QSlider(this);
   slider->setOrientation(Qt::Horizontal);
   slider->setEnabled(false);
   main_layout->addWidget(slider);
+  connect(slider, &QSlider::sliderMoved,
+          player, &QMediaPlayer::setPosition);
+
+  connect(player, &QMediaPlayer::mediaStatusChanged,
+          this, &FSSAudioView::on_media_status_changed);
+  connect(player, &QMediaPlayer::durationChanged,
+          this, &FSSAudioView::on_duration_changed);
+  connect(player, &QMediaPlayer::positionChanged,
+          this, &FSSAudioView::on_position_changed);
+  connect(player, &QMediaPlayer::playbackStateChanged,
+          this, &FSSAudioView::on_state_changed);
+  connect(player, &QMediaPlayer::errorOccurred,
+          this, &FSSAudioView::on_error);
 }
 
 FSSAudioView::~FSSAudioView() {
+  player->disconnect();
+  player->stop();
+  player->setSource(QUrl());
+
   if (file != nullptr) {
     delete file;
     file = nullptr;
@@ -56,12 +82,16 @@ FSSAudioView::~FSSAudioView() {
 
 void
 FSSAudioView::setAudioData(PBuffer data, const QString &format) {
+  player->stop();
+  player->setSource(QUrl());
   if (file != nullptr) {
     delete file;
     file = nullptr;
   }
+  buttonPlay->setText("Play");
   buttonPlay->setEnabled(false);
   slider->setEnabled(false);
+  slider->setValue(0);
 
   if (!data) {
     return;
@@ -78,6 +108,27 @@ FSSAudioView::setAudioData(PBuffer data, const QString &format) {
     return;
   }
   file->close();
+
+  player->setSource(QUrl::fromLocalFile(file->fileName()));
+}
+
+void
+FSSAudioView::on_media_status_changed(QMediaPlayer::MediaStatus status) {
+  switch (status) {
+    case QMediaPlayer::LoadedMedia:
+      buttonPlay->setEnabled(true);
+      slider->setEnabled(true);
+      break;
+    case QMediaPlayer::EndOfMedia:
+      player->setPosition(0);
+      break;
+    case QMediaPlayer::InvalidMedia:
+      buttonPlay->setEnabled(false);
+      slider->setEnabled(false);
+      break;
+    default:
+      break;
+  }
 }
 
 void
@@ -88,5 +139,35 @@ FSSAudioView::on_duration_changed(qint64 duration) {
 
 void
 FSSAudioView::on_position_changed(qint64 position) {
-  slider->setValue((int)position);
+  if (!slider->isSliderDown()) {
+    slider->setValue((int)position);
+  }
+}
+
+void
+FSSAudioView::on_state_changed(QMediaPlayer::PlaybackState state) {
+  switch (state) {
+    case QMediaPlayer::StoppedState:
+    case QMediaPlayer::PausedState:
+      buttonPlay->setText("Play");
+      break;
+    case QMediaPlayer::PlayingState:
+      buttonPlay->setText("Stop");
+      break;
+  }
+}
+
+void
+FSSAudioView::on_error(QMediaPlayer::Error /*error*/,
+                       const QString &errorString) {
+  qDebug() << "Audio playback error:" << errorString;
+}
+
+void
+FSSAudioView::on_play() {
+  if (player->playbackState() == QMediaPlayer::PlayingState) {
+    player->stop();
+  } else {
+    player->play();
+  }
 }

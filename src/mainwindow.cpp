@@ -51,19 +51,19 @@ FSSMainWindow::FSSMainWindow(FSSDataModel *_dataModel, QWidget *parent)
   QMenuBar *menuBar = this->menuBar();
 
   QMenu *menuFile = new QMenu("File", this);
-  menuFile->addAction("Export", this, SLOT(exportSource()));
+  menuFile->addAction("Export", this, &FSSMainWindow::exportSource);
   menuBar->addMenu(menuFile);
   QAction *action_src = menuFile->addAction("Sources", this,
-                                            SLOT(openSources()));
+                                            &FSSMainWindow::openSources);
   action_src->setMenuRole(QAction::PreferencesRole);
 
   QMenu *menuView = new QMenu("View", this);
   menuBar->addMenu(menuView);
   QAction *action = menuView->addAction("Resources", dockResources,
-                                        SLOT(setVisible(bool)));
+                                        &QDockWidget::setVisible);
   action->setCheckable(true);
-  connect(dockResources, SIGNAL(visibilityChanged(bool)), action,
-          SLOT(setChecked(bool)));
+  connect(dockResources, &QDockWidget::visibilityChanged,
+          action, &QAction::setChecked);
 
   menuView->addSeparator();
 
@@ -74,18 +74,18 @@ FSSMainWindow::FSSMainWindow(FSSDataModel *_dataModel, QWidget *parent)
     Data::PSource data_source = dataModel->getDataSource(i);
     viewSources->addSource(data_source);
     QAction *action = menuView->addAction(data_source->get_name().c_str(),
-                                          this, SLOT(switchSource(bool)));
+                                          this, &FSSMainWindow::switchSource);
     action->setCheckable(true);
     action->setChecked(true);
     actions[action] = data_source;
   }
 
   connect(treeResources->selectionModel(),
-          SIGNAL(currentChanged(QModelIndex,QModelIndex)),
-          SLOT(onCurrentChanged(QModelIndex,QModelIndex)));
+          &QItemSelectionModel::currentChanged,
+          this, &FSSMainWindow::onCurrentChanged);
 
-  connect(this, SIGNAL(resourceSelected(Data::Resource,uint)),
-          viewSources, SLOT(onResourceSelected(Data::Resource,uint)));
+  connect(this, &FSSMainWindow::resourceSelected,
+          viewSources, &FSSSourcesView::onResourceSelected);
 }
 
 FSSMainWindow::~FSSMainWindow() {
@@ -121,7 +121,7 @@ FSSMainWindow::openSources() {
 
 void
 FSSMainWindow::switchSource(bool checked) {
-  QAction *action = (QAction*)sender();
+  QAction *action = qobject_cast<QAction*>(sender());
   Data::PSource source = actions[action];
   viewSources->showSource(source, checked);
 }

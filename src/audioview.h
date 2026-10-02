@@ -23,11 +23,12 @@
 #define SRC_AUDIOVIEW_H_
 
 #include <QWidget>
-//#include <QMediaPlayer>
+#include <QMediaPlayer>
 
 #include "src/data-source.h"
 
 class QTemporaryFile;
+class QAudioOutput;
 class QSlider;
 class QPushButton;
 
@@ -36,22 +37,24 @@ class FSSAudioView : public QWidget {
 
  protected:
   QTemporaryFile *file;
-//  QMediaPlayer *player;
+  QMediaPlayer *player;
+  QAudioOutput *audioOutput;
   QSlider *slider;
   QPushButton *buttonPlay;
 
  public:
-  explicit FSSAudioView(QWidget *pParent = NULL);
+  explicit FSSAudioView(QWidget *pParent = nullptr);
   virtual ~FSSAudioView();
 
   void setAudioData(PBuffer data, const QString &format);
 
  public slots:
-//  void on_media_status_changed(QMediaPlayer::MediaStatus status);
+  void on_media_status_changed(QMediaPlayer::MediaStatus status);
   void on_duration_changed(qint64 duration);
   void on_position_changed(qint64 position);
-//  void on_state_changed(QMediaPlayer::State state);
-//  void on_play();
+  void on_state_changed(QMediaPlayer::PlaybackState state);
+  void on_error(QMediaPlayer::Error error, const QString &errorString);
+  void on_play();
 };
 
 #endif  // SRC_AUDIOVIEW_H_

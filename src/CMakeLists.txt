@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -38,7 +38,8 @@ set(FSSTUDIO_HEADERS animationview.h
                      spriteview.h)
 
 qt_add_executable(${PROJECT_NAME} WIN32 ${FSSTUDIO_SOURCES} ${FSSTUDIO_HEADERS})
-target_link_libraries(${PROJECT_NAME} PRIVATE freeserf_data Qt6::Core Qt6::Gui Qt6::Widgets)
+target_link_libraries(${PROJECT_NAME} PRIVATE freeserf_data Qt6::Core Qt6::Gui Qt6::Widgets
+                      Qt6::Multimedia)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     WIN32_EXECUTABLE ON
     MACOSX_BUNDLE ON
